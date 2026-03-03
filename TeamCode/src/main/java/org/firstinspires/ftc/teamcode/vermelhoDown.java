@@ -20,14 +20,10 @@ public class vermelhoDown extends LinearOpMode {
         if (opModeIsActive()) {
             // Andar para frente (Sair da Launch Zone)
             andarFrente(0.5);
-            sleep(400); // SE QUISER QUE ANDE MAIS TEMPO, MUDA AQUI LAURA E DANI
+            sleep(450); // SE QUISER QUE ANDE MAIS TEMPO, MUDA AQUI LAURA E DANI
             parar();
             sleep(300);
 
-            // Lateral Esquerda (Strafe Left)
-            lateralEsquerda(0.5);
-            sleep(300); // SE QUISER QUE ANDE MAIS TEMPO, MUDA AQUI LAURA E DANI
-            parar();
         }
     }
 

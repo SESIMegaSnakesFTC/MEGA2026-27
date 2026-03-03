@@ -40,7 +40,7 @@ public class TeleopDEFAULT extends LinearOpMode {
     public boolean A_PressUltEst_G2 = false;
 
     double shooterPower = -0.85;
-    double menorShooter = 0.5;
+    double menorShooter = 0.65;
     double maiorShooter = 0.8;
 
     private boolean yUltimoEstado = false;
