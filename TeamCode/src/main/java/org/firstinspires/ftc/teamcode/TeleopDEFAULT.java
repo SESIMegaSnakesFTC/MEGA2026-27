@@ -130,10 +130,10 @@ public class TeleopDEFAULT extends LinearOpMode {
         rbPressionadoUltimoEstado = rb;
         lbPressionadoUltimoEstado = lb;
 
-        leftFront.setPower((ft + lateral - giro) * velocidade);
-        rightFront.setPower((ft - lateral + giro) * velocidade);
-        leftBack.setPower((ft - lateral - giro) * velocidade);
-        rightBack.setPower((ft + lateral + giro) * velocidade);
+        leftFront.setPower((ft + lateral + giro) * velocidade);
+        rightFront.setPower((ft - lateral - giro) * velocidade);
+        leftBack.setPower((ft - lateral + giro) * velocidade);
+        rightBack.setPower((ft + lateral - giro) * velocidade);
     }
 
     private void feederControl() {
