@@ -5,7 +5,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 
-@Autonomous(name = "CIMA - VERMELHO (Autônomo)")
+@Autonomous(name = "CIMA - AZUL (Autônomo)")
 public class azulUp extends LinearOpMode {
 
     private DcMotorEx leftFront, leftBack, rightFront, rightBack;
