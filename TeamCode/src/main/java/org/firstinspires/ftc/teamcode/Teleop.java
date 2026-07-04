@@ -21,6 +21,7 @@ public class Teleop extends LinearOpMode {
     // Declaração dos motores de mecanismos
     private DcMotor spindexer;
     private DcMotor feeder;
+    private DcMotor shooter;
 
     @Override
     public void runOpMode() {
@@ -33,6 +34,7 @@ public class Teleop extends LinearOpMode {
         rightFront = hardwareMap.get(DcMotor.class, "rightFront");
         spindexer = hardwareMap.get(DcMotor.class, "Spindexer");
         feeder = hardwareMap.get(DcMotor.class, "feeder");
+        shooter = hardwareMap.get(DcMotor.class, "shooter");
 
         // --- Configuração de Direção ---
         // Motores da esquerda costumam ser invertidos para que valores positivos movam o robô para frente
@@ -50,15 +52,11 @@ public class Teleop extends LinearOpMode {
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         spindexer.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         feeder.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        shooter.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         // Avisa que a inicialização foi concluída
         telemetry.addLine("Pronto!");
         telemetry.update();
-
-        // Variáveis auxiliares para a lógica de "Toggle" do Spindexer
-        boolean lastY = false;      // Armazena o estado anterior do botão Y
-        boolean lastX = false;      // Armazena o estado anterior do botão X
-        double spindexerPower = 0;  // Potência atual que será enviada ao motor Spindexer
 
         // Aguarda o botão Start ser pressionado no Driver Station
         waitForStart();
@@ -87,44 +85,30 @@ public class Teleop extends LinearOpMode {
             rightFront.setPower(frontRightPower);
             rightBack.setPower(backRightPower);
 
-            // --- Controle do Spindexer (Gamepad 2) - Lógica de Toggle ---
-            
-            // Lógica para o botão Y (Girar para frente ou parar)
-            if (gamepad2.y && !lastY) { // Detecta apenas o momento do clique (quando pressiona)
-                if (spindexerPower == 0.6) {
-                    spindexerPower = 0;     // Se já estava ligado, desliga
-                } else {
-                    spindexerPower = 0.6;   // Se estava parado ou em reverso, liga com 0.6
-                }
-            }
-            lastY = gamepad2.y; // Atualiza o estado anterior do botão
-
-            // Lógica para o botão X (Girar para trás ou parar)
-            if (gamepad2.x && !lastX) {
-                if (spindexerPower == -0.6) {
-                    spindexerPower = 0;     // Se já estava em reverso, desliga
-                } else {
-                    spindexerPower = -0.6;  // Se estava parado ou em frente, liga com -0.6
-                }
-            }
-            lastX = gamepad2.x; // Atualiza o estado anterior do botão
-
-            // Aplica a potência final ao motor do Spindexer
-            spindexer.setPower(spindexerPower);
-
-            // --- Controle do Feeder (Gamepad 2) - Lógica de Hold (Segurar) ---
+            // --- Controle do Shooter e Spindexer (Gamepad 2) ---
             if (gamepad2.right_bumper) {
-                feeder.setPower(1.0);  // Gira enquanto segura RB
+                shooter.setPower(1.0);
+                spindexer.setPower(0.6); // Ativa o spindexer junto com o shooter
             } else if (gamepad2.left_bumper) {
-                feeder.setPower(-1.0); // Gira invertido enquanto segura LB
+                shooter.setPower(-1.0);
+                spindexer.setPower(-0.6); // Ativa o spindexer invertido junto com o shooter
             } else {
-                feeder.setPower(0);    // Para quando solta ambos
+                shooter.setPower(0);
+                spindexer.setPower(0);
+            }
+
+            // --- Controle do Feeder (Gamepad 2) - Gatilhos (RT/LT) ---
+            if (gamepad2.right_trigger > 0.1) {
+                feeder.setPower(1.0);
+            } else if (gamepad2.left_trigger > 0.1) {
+                feeder.setPower(-1.0);
+            } else {
+                feeder.setPower(0);
             }
 
             // --- Telemetria ---
             // Exibe dados no Driver Station para diagnóstico em tempo real
             telemetry.addData("Status", "Rodando");
-            telemetry.addData("Spindexer Power", spindexerPower);
             telemetry.addData("Joystick Y", y);
             telemetry.addData("Joystick X", x);
             telemetry.addData("Joystick RX", rx);
