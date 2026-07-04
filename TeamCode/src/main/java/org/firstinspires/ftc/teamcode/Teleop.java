@@ -54,9 +54,13 @@ public class Teleop extends LinearOpMode {
         feeder.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         shooter.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // Avisa que a inicialização foi concluída
         telemetry.addLine("Pronto!");
         telemetry.update();
+
+        // Variáveis para a lógica de Toggle (Clique para ligar/desligar)
+        boolean lastRT = false;
+        boolean lastLT = false;
+        double shooterActivePower = 0;
 
         // Aguarda o botão Start ser pressionado no Driver Station
         waitForStart();
@@ -85,22 +89,30 @@ public class Teleop extends LinearOpMode {
             rightFront.setPower(frontRightPower);
             rightBack.setPower(backRightPower);
 
-            // --- Controle do Shooter e Spindexer (Gamepad 2) ---
-            if (gamepad2.right_bumper) {
-                shooter.setPower(1.0);
-                spindexer.setPower(0.6); // Ativa o spindexer junto com o shooter
-            } else if (gamepad2.left_bumper) {
-                shooter.setPower(-1.0);
-                spindexer.setPower(-0.6); // Ativa o spindexer invertido junto com o shooter
-            } else {
-                shooter.setPower(0);
-                spindexer.setPower(0);
-            }
+            // --- Controle do Shooter e Spindexer (Gamepad 2) - Lógica de Toggle (RT/LT) ---
+            // RT liga/desliga para frente, LT liga/desliga para trás
+            boolean currentRT = gamepad2.right_trigger > 0.5;
+            boolean currentLT = gamepad2.left_trigger > 0.5;
 
-            // --- Controle do Feeder (Gamepad 2) - Gatilhos (RT/LT) ---
-            if (gamepad2.right_trigger > 0.1) {
+            if (currentRT && !lastRT) {
+                if (shooterActivePower == 1.0) shooterActivePower = 0;
+                else shooterActivePower = 1.0;
+            }
+            lastRT = currentRT;
+
+            if (currentLT && !lastLT) {
+                if (shooterActivePower == -1.0) shooterActivePower = 0;
+                else shooterActivePower = -1.0;
+            }
+            lastLT = currentLT;
+
+            shooter.setPower(shooterActivePower);
+            spindexer.setPower(shooterActivePower * 0.8); // Spindexer acompanha o shooter (80% da força)
+
+            // --- Controle do Feeder (Gamepad 2) - Bumpers (RB/LB) ---
+            if (gamepad2.right_bumper) {
                 feeder.setPower(1.0);
-            } else if (gamepad2.left_trigger > 0.1) {
+            } else if (gamepad2.left_bumper) {
                 feeder.setPower(-1.0);
             } else {
                 feeder.setPower(0);
