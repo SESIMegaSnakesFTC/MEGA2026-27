@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.Rogensk_codes;
+package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -6,119 +6,98 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 
 /**
  * Código de Teleoperado para a equipe MEGA.
- * Este OpMode controla um chassi Mecanum, um motor Spindexer com sistema de toggle (Y/X)
- * e um motor Feeder com sistema de hold (bumpers).
+ * Inclui Mecanum com Compensação de Força (Bias) MANUAL no Strafe.
+ * Resolvido SEM SENSORES (Sem IMU).
  */
 @TeleOp(name = "Teleoperado", group = "TeleOp")
 public class Teleop extends LinearOpMode {
 
-    // Zona morta dos joysticks: valores abaixo disso são tratados como zero
-    private static final double DEADZONE = 0.05;
+    // Chassi
+    private DcMotor leftFront, leftBack, rightBack, rightFront;
 
-    // Declaração dos motores do chassi
-    private DcMotor leftBack;
-    private DcMotor leftFront;
-    private DcMotor rightBack;
-    private DcMotor rightFront;
+    // Mecanismos
+    private DcMotor spindexer, feeder, shooter;
 
-    // Declaração dos motores de mecanismos
-    private DcMotor spindexer;
-    private DcMotor feeder;
-    private DcMotor shooter;
-
-    /**
-     * Aplica a zona morta a um valor de joystick.
-     * Se o valor absoluto estiver dentro da DEADZONE, retorna 0.
-     * Caso contrário, "reescala" o valor para que a resposta continue suave
-     * logo após sair da zona morta (sem salto brusco de 0 para 0.06, por exemplo).
-     */
-    private double applyDeadzone(double value) {
-        if (Math.abs(value) < DEADZONE) {
-            return 0.0;
-        }
-        double sign = Math.signum(value);
-        return sign * ((Math.abs(value) - DEADZONE) / (1.0 - DEADZONE));
-    }
+    // --- CONFIGURAÇÃO DE COMPENSAÇÃO MANUAL (BIAS) ---
+    // Ajuste este valor conforme seus testes para o robô andar reto.
+    // Ex: 0.1, 0.2, 0.3... quanto maior, mais força o lado oposto ganha.
+    private double STRAFE_BIAS_FACTOR = 0.8;
 
     @Override
     public void runOpMode() {
 
-        // --- Mapeamento de Hardware ---
-        // Associa as variáveis aos nomes configurados no Driver Station
-        leftBack = hardwareMap.get(DcMotor.class, "leftBack");
-        leftFront = hardwareMap.get(DcMotor.class, "leftFront");
-        rightBack = hardwareMap.get(DcMotor.class, "rightBack");
+        // Mapeamento de Hardware
+        leftFront  = hardwareMap.get(DcMotor.class, "leftFront");
+        leftBack   = hardwareMap.get(DcMotor.class, "leftBack");
+        rightBack  = hardwareMap.get(DcMotor.class, "rightBack");
         rightFront = hardwareMap.get(DcMotor.class, "rightFront");
-        spindexer = hardwareMap.get(DcMotor.class, "Spindexer");
-        feeder = hardwareMap.get(DcMotor.class, "feeder");
-        shooter = hardwareMap.get(DcMotor.class, "shooter");
+        spindexer  = hardwareMap.get(DcMotor.class, "Spindexer");
+        feeder     = hardwareMap.get(DcMotor.class, "feeder");
+        shooter    = hardwareMap.get(DcMotor.class, "shooter");
 
-        // --- Configuração de Direção ---
-        // Motores da esquerda costumam ser invertidos para que valores positivos movam o robô para frente
-        leftBack.setDirection(DcMotor.Direction.REVERSE);
+        // Direção dos motores
         leftFront.setDirection(DcMotor.Direction.REVERSE);
-
-        rightBack.setDirection(DcMotor.Direction.FORWARD);
+        leftBack.setDirection(DcMotor.Direction.REVERSE);
         rightFront.setDirection(DcMotor.Direction.FORWARD);
+        rightBack.setDirection(DcMotor.Direction.FORWARD);
 
-        // --- Comportamento em Zero Power ---
-        // Configura os motores para "frear" (BRAKE) quando a potência for zero, em vez de deslizar (FLOAT)
-        leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        // Comportamento Zero Power
         leftFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         spindexer.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         feeder.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         shooter.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        telemetry.addLine("Pronto!");
-        telemetry.update();
-
-        // Variáveis para a lógica de Toggle (Clique para ligar/desligar)
+        // Variáveis de Estado para o Shooter/Spindexer
         boolean lastRT = false;
         boolean lastLT = false;
         double shooterActivePower = 0;
 
-        // Aguarda o botão Start ser pressionado no Driver Station
+        telemetry.addLine("Pronto! Pressione START");
+        telemetry.update();
+
         waitForStart();
 
-        // Loop principal do TeleOp
         while (opModeIsActive()) {
 
-            // --- Controle de Movimentação (Gamepad 1) ---
-            // y: Frente/Trás | x: Esquerda/Direita (Strafe) | rx: Rotação
-            double y = applyDeadzone(-gamepad1.left_stick_y);
-            double x = applyDeadzone(gamepad1.left_stick_x);
-            double rx = applyDeadzone(gamepad1.right_stick_x);
+            // --- CONTROLE DE MOVIMENTAÇÃO (Gamepad 1) ---
+            double y = -gamepad1.left_stick_y;
+            double x = gamepad1.left_stick_x;
+            double rx = gamepad1.right_stick_x;
 
-            // Fórmulas matemáticas para tração Mecanum
-            // Configuração "X" padrão: leftFront/rightBack com rolete de um tipo,
-            // leftBack/rightFront com rolete do outro tipo (cantos opostos iguais).
-            double frontLeftPower  = y + x + rx;
-            double backLeftPower   = y - x + rx;
-            double frontRightPower = y - x - rx;
-            double backRightPower  = y + x - rx;
+            // --- Lógica de Multiplicador de Força MANUAL (Bias) ---
+            double leftMultiplier = 1.0;
+            double rightMultiplier = 1.0;
 
-            double denominator = Math.max(
-                    Math.max(Math.abs(frontLeftPower), Math.abs(backLeftPower)),
-                    Math.max(Math.abs(frontRightPower), Math.abs(backRightPower))
-            );
-
-            if (denominator > 1.0){
-                frontLeftPower  /= denominator;
-                backLeftPower   /= denominator;
-                frontRightPower /= denominator;
-                backRightPower  /= denominator;
+            // Se estiver indo para a ESQUERDA (x negativo), aumenta força na DIREITA
+            if (x < -0.1) {
+                rightMultiplier = 1.0 + (Math.abs(x) * STRAFE_BIAS_FACTOR);
+            }
+            // Se estiver indo para a DIREITA (x positivo), aumenta força na ESQUERDA
+            else if (x > 0.1) {
+                leftMultiplier = 1.0 + (Math.abs(x) * STRAFE_BIAS_FACTOR);
             }
 
-            // Envia as potências calculadas para os motores do chassi
-            leftFront.setPower(frontLeftPower);
-            leftBack.setPower(backLeftPower);
-            rightFront.setPower(frontRightPower);
-            rightBack.setPower(backRightPower);
+            // Cálculo das potências aplicando os multiplicadores de compensação
+            double frontLeft  = (y + x + rx) * leftMultiplier;
+            double backLeft   = (y - x + rx) * leftMultiplier;
+            double frontRight = (y - x - rx) * rightMultiplier;
+            double backRight  = (y + x - rx) * rightMultiplier;
 
-            // --- Controle do Shooter e Spindexer (Gamepad 2) - Lógica de Toggle (RT/LT) ---
-            // RT liga/desliga para frente, LT liga/desliga para trás
+            // Normalização para não ultrapassar 1.0 (100% de força)
+            double denominator = Math.max(Math.max(Math.abs(frontLeft), Math.abs(backLeft)),
+                    Math.max(Math.abs(frontRight), Math.abs(backRight)));
+            denominator = Math.max(denominator, 1.0);
+
+            leftFront.setPower(frontLeft / denominator);
+            leftBack.setPower(backLeft / denominator);
+            rightFront.setPower(frontRight / denominator);
+            rightBack.setPower(backRight / denominator);
+
+
+            // --- CONTROLE DO SHOOTER E SPINDEXER (Gamepad 2) - Lógica de Toggle ---
             boolean currentRT = gamepad2.right_trigger > 0.5;
             boolean currentLT = gamepad2.left_trigger > 0.5;
 
@@ -126,34 +105,26 @@ public class Teleop extends LinearOpMode {
                 if (shooterActivePower == 1.0) shooterActivePower = 0;
                 else shooterActivePower = 1.0;
             }
-            lastRT = currentRT;
-
             if (currentLT && !lastLT) {
                 if (shooterActivePower == -1.0) shooterActivePower = 0;
                 else shooterActivePower = -1.0;
             }
+
+            lastRT = currentRT;
             lastLT = currentLT;
 
             shooter.setPower(shooterActivePower);
-            spindexer.setPower(shooterActivePower * 0.8); // Spindexer acompanha o shooter (80% da força)
+            spindexer.setPower(shooterActivePower * 0.8);
 
-            // --- Controle do Feeder (Gamepad 2) - Bumpers (RB/LB) ---
-            if (gamepad2.right_bumper) {
-                feeder.setPower(1.0);
-            } else if (gamepad2.left_bumper) {
-                feeder.setPower(-1.0);
-            } else {
-                feeder.setPower(0);
-            }
+            // --- CONTROLE DO FEEDER (Gamepad 2) ---
+            if (gamepad2.right_bumper) feeder.setPower(1.0);
+            else if (gamepad2.left_bumper) feeder.setPower(-1.0);
+            else feeder.setPower(0);
 
-            // --- Telemetria ---
-            // Exibe dados no Driver Station para diagnóstico em tempo real
-            telemetry.addData("Status", "Rodando");
-            telemetry.addData("Joystick Y", y);
-            telemetry.addData("Joystick X", x);
-            telemetry.addData("Joystick RX", rx);
-            telemetry.addData("FeederRT",gamepad2.right_bumper );
-            telemetry.addData("FeederLT", gamepad2.left_bumper);
+            // Telemetria para ajudar nos testes
+            telemetry.addData("Bias Factor", STRAFE_BIAS_FACTOR);
+            telemetry.addData("Mult Esq", leftMultiplier);
+            telemetry.addData("Mult Dir", rightMultiplier);
             telemetry.update();
         }
     }
