@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.Rogensk_codes;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -12,6 +12,9 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 @TeleOp(name = "Teleoperado", group = "TeleOp")
 public class Teleop extends LinearOpMode {
 
+    // Zona morta dos joysticks: valores abaixo disso são tratados como zero
+    private static final double DEADZONE = 0.05;
+
     // Declaração dos motores do chassi
     private DcMotor leftBack;
     private DcMotor leftFront;
@@ -22,6 +25,20 @@ public class Teleop extends LinearOpMode {
     private DcMotor spindexer;
     private DcMotor feeder;
     private DcMotor shooter;
+
+    /**
+     * Aplica a zona morta a um valor de joystick.
+     * Se o valor absoluto estiver dentro da DEADZONE, retorna 0.
+     * Caso contrário, "reescala" o valor para que a resposta continue suave
+     * logo após sair da zona morta (sem salto brusco de 0 para 0.06, por exemplo).
+     */
+    private double applyDeadzone(double value) {
+        if (Math.abs(value) < DEADZONE) {
+            return 0.0;
+        }
+        double sign = Math.signum(value);
+        return sign * ((Math.abs(value) - DEADZONE) / (1.0 - DEADZONE));
+    }
 
     @Override
     public void runOpMode() {
@@ -70,18 +87,29 @@ public class Teleop extends LinearOpMode {
 
             // --- Controle de Movimentação (Gamepad 1) ---
             // y: Frente/Trás | x: Esquerda/Direita (Strafe) | rx: Rotação
-            double y = gamepad1.left_stick_y;    
-            double x = -gamepad1.left_stick_x;   
-            double rx = gamepad1.right_stick_x;  
-
-            // Denominador para garantir que a potência total não ultrapasse 1.0 (100%)
-            double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1);
+            double y = applyDeadzone(-gamepad1.left_stick_y);
+            double x = applyDeadzone(gamepad1.left_stick_x);
+            double rx = applyDeadzone(gamepad1.right_stick_x);
 
             // Fórmulas matemáticas para tração Mecanum
-            double frontLeftPower  = (y + x + rx) / denominator;
-            double backLeftPower   = (y - x + rx) / denominator;
-            double frontRightPower = (y - x - rx) / denominator;
-            double backRightPower  = (y + x - rx) / denominator;
+            // Configuração "X" padrão: leftFront/rightBack com rolete de um tipo,
+            // leftBack/rightFront com rolete do outro tipo (cantos opostos iguais).
+            double frontLeftPower  = y + x + rx;
+            double backLeftPower   = y - x + rx;
+            double frontRightPower = y - x - rx;
+            double backRightPower  = y + x - rx;
+
+            double denominator = Math.max(
+                    Math.max(Math.abs(frontLeftPower), Math.abs(backLeftPower)),
+                    Math.max(Math.abs(frontRightPower), Math.abs(backRightPower))
+            );
+
+            if (denominator > 1.0){
+                frontLeftPower  /= denominator;
+                backLeftPower   /= denominator;
+                frontRightPower /= denominator;
+                backRightPower  /= denominator;
+            }
 
             // Envia as potências calculadas para os motores do chassi
             leftFront.setPower(frontLeftPower);
@@ -124,23 +152,9 @@ public class Teleop extends LinearOpMode {
             telemetry.addData("Joystick Y", y);
             telemetry.addData("Joystick X", x);
             telemetry.addData("Joystick RX", rx);
+            telemetry.addData("FeederRT",gamepad2.right_bumper );
+            telemetry.addData("FeederLT", gamepad2.left_bumper);
             telemetry.update();
         }
     }
 }
-
-/**
- * --- LEGENDA DE PROGRAMAÇÃO ---
- * 
- * 1. public class Teleop extends LinearOpMode: Define o nome do programa e diz que ele segue o modelo padrão da FTC.
- * 2. private DcMotor: Declara uma variável que representa um motor elétrico. "private" significa que só este arquivo a enxerga.
- * 3. double: Tipo de dado para números com casas decimais. Usado para potências (ex: 0.6) e valores dos joysticks.
- * 4. boolean: Tipo de dado lógico que só pode ser Verdadeiro (true) ou Falso (false). Usado para o sistema de Toggle.
- * 5. void runOpMode(): O método principal onde tudo acontece. "void" significa que ele executa uma ação mas não devolve um valor.
- * 6. hardwareMap: O "dicionário" do robô que conecta os nomes escritos no Driver Station com as variáveis do código.
- * 7. setPower(double): Comando que define a velocidade do motor, variando de -1.0 (trás) a 1.0 (frente).
- * 8. while(opModeIsActive()): Um laço de repetição que mantém o código rodando enquanto o botão "Stop" não for pressionado.
- * 9. if / else: Estruturas de decisão. "Se" tal condição for real, faça isso, "senão", faça aquilo.
- * 10. !lastY: O símbolo "!" significa "NÃO". Usado aqui para verificar se o botão NÃO estava pressionado no ciclo anterior (detecção de clique).
- * 11. telemetry: Sistema usado para enviar textos e números para a tela do celular do piloto.
- */
