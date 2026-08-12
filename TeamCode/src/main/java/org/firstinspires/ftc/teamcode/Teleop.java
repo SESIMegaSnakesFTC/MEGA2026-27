@@ -1,8 +1,11 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 /**
  * Código de Teleoperado para a equipe MEGA.
@@ -12,28 +15,51 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 @TeleOp(name = "Teleoperado", group = "TeleOp")
 public class Teleop extends LinearOpMode {
 
+    enum STATELime { GIRANDO, ENCONTROU, PARADO }
+    STATELime statusLIMELIGHT = STATELime.PARADO;
+    boolean ToRight   = true;
+    double AnguloAlvo = 0;
+
     // Chassi
     private DcMotor leftFront, leftBack, rightBack, rightFront;
 
+    //limelight
+    private Limelight3A limelight3A;
+    boolean SeeingBall, Stop;
     // Mecanismos
-    private DcMotor spindexer, feeder, shooter;
+    private DcMotor spindexer, feeder, shooter, LimelightMotor;
 
     // --- CONFIGURAÇÃO DE COMPENSAÇÃO MANUAL (BIAS) ---
     // Ajuste este valor conforme seus testes para o robô andar reto.
     // Ex: 0.1, 0.2, 0.3... quanto maior, mais força o lado oposto ganha.
     private double STRAFE_BIAS_FACTOR = 0.8;
 
+
     @Override
     public void runOpMode() {
 
         // Mapeamento de Hardware
-        leftFront  = hardwareMap.get(DcMotor.class, "leftFront");
-        leftBack   = hardwareMap.get(DcMotor.class, "leftBack");
-        rightBack  = hardwareMap.get(DcMotor.class, "rightBack");
-        rightFront = hardwareMap.get(DcMotor.class, "rightFront");
-        spindexer  = hardwareMap.get(DcMotor.class, "Spindexer");
-        feeder     = hardwareMap.get(DcMotor.class, "feeder");
-        shooter    = hardwareMap.get(DcMotor.class, "shooter");
+        leftFront      = hardwareMap.get(DcMotor.class, "leftFront");
+        leftBack       = hardwareMap.get(DcMotor.class, "leftBack");
+        rightBack      = hardwareMap.get(DcMotor.class, "rightBack");
+        rightFront     = hardwareMap.get(DcMotor.class, "rightFront");
+        spindexer      = hardwareMap.get(DcMotor.class, "Spindexer");
+        feeder         = hardwareMap.get(DcMotor.class, "feeder");
+        shooter        = hardwareMap.get(DcMotor.class, "shooter");
+        LimelightMotor = hardwareMap.get(DcMotor.class, "MotorLimelight");
+        limelight3A    = hardwareMap.get(Limelight3A.class, "limelight");
+
+
+        //limelight
+        LimelightMotor.setDirection(DcMotor.Direction.FORWARD);
+        LimelightMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        limelight3A.setPollRateHz(90);
+        limelight3A.start();
+
+        //MODO ATUAL
+        limelight3A.pipelineSwitch(9); //Identificar pólen
+
+
 
         // Direção dos motores
         leftFront.setDirection(DcMotor.Direction.REVERSE);
@@ -49,10 +75,12 @@ public class Teleop extends LinearOpMode {
         spindexer.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         feeder.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         shooter.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        LimelightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
 
         // Variáveis de Estado para o Shooter/Spindexer
-        boolean lastRT = false;
-        boolean lastLT = false;
+        boolean lastRT            = false;
+        boolean lastLT            = false;
         double shooterActivePower = 0;
 
         telemetry.addLine("Pronto! Pressione START");
@@ -79,6 +107,21 @@ public class Teleop extends LinearOpMode {
             else if (x > 0.1) {
                 leftMultiplier = 1.0 + (Math.abs(x) * STRAFE_BIAS_FACTOR);
             }
+
+            // -- Variáveis da limelight --
+            LLResult result = limelight3A.getLatestResult();
+
+            if (result != null && result.isValid()){
+                SeeingBall = true;
+                while (SeeingBall){
+                    Stop = true;
+                }
+            }
+            else{
+                SeeingBall = true;
+
+            }
+
 
             // Cálculo das potências aplicando os multiplicadores de compensação
             double frontLeft  = (y + x + rx) * leftMultiplier;
@@ -121,10 +164,14 @@ public class Teleop extends LinearOpMode {
             else if (gamepad2.left_bumper) feeder.setPower(-1.0);
             else feeder.setPower(0);
 
+
+
+
             // Telemetria para ajudar nos testes
             telemetry.addData("Bias Factor", STRAFE_BIAS_FACTOR);
             telemetry.addData("Mult Esq", leftMultiplier);
             telemetry.addData("Mult Dir", rightMultiplier);
+            telemetry.addData("Any Ball", SeeingBall);
             telemetry.update();
         }
     }
