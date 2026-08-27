@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.AUTONOMO.pedroPathing.PedroPathing;
+package org.firstinspires.ftc.teamcode.AUTONOMO.pedroPathing;
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierLine;
@@ -6,12 +6,12 @@ import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
-import org.firstinspires.ftc.teamcode.AUTONOMO.pedroPathing.Constants;
 
-class PedroPath {
+
+class PedroPathing1 {
     public PathChain MainChain;
 
-    public PedroPath(Follower follower) {
+    public PedroPathing1 (Follower follower) {
         MainChain = follower.pathBuilder()
                 .addPath(
                         new BezierLine(
@@ -45,7 +45,7 @@ class PedroPath {
                 .build();
     }
 }
-public class EsquerdoBaixoTest extends LinearOpMode{
+public class AzulEsquerda extends LinearOpMode{
 
     private Follower follower;
 
